@@ -1,0 +1,68 @@
+---
+title: "MaxQuant Reference Summary"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(leaflet)
+library(DT)
+load('/mnt/BLACKBURNLAB/QC/Reference/summary/msScans.RData')
+dim(scans)
+#head(reduced_data)
+#colnames(reduced_data)
+#date_order$Peaks.Repeatedly.Sequenced....
+#boxplot(date_order$Peaks.Repeatedly.Sequenced....)
+#colnames(date_order)[4:21]
+#colnames(date_order)
+
+```
+
+
+RAW {data-icon="fa-list"}
+============================================
+test
+
+
+```{r}
+
+
+scans$Total.ion.current = signif(scans$Total.ion.current,3)
+ sliderInput("y_range", "TIC Range", 
+             min=1e6, max=1.2e10,
+             value=c(0,5e9),
+             dragRange = T,
+             width = 800)
+
+raw_list = unique(scans$Raw.file[2:length(scans$Raw.file)])
+
+#selectInput(inputId = 'RAW',
+#            label = 'RAW file',
+#            choices = raw_list)
+
+ sliderInput("file_range", "file Range", 
+             min=0, max=length(raw_list),
+             value=c(0,length(raw_list)),
+             dragRange = T,
+             width = 800)
+
+
+fillCol(height = 500,
+renderPlot({
+ggplot(scans[scans$Raw.file %in% raw_list[input$file_range[1]:input$file_range[2]],], aes(x=Retention.time,y=Total.ion.current,colour=Raw.file)) +
+  geom_line(size = 0.1) +
+    ylim(input$y_range[1],input$y_range[2])
+},height = 500))
+
+
+
+```
+

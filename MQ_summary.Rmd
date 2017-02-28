@@ -1,0 +1,326 @@
+---
+title: "MaxQuant Reference Summary"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(leaflet)
+library(DT)
+load('/mnt/BLACKBURNLAB/QC/Reference/summary/QC.RData')
+#dim(reduced_data)
+#head(reduced_data)
+#colnames(reduced_data)
+date_order$Peaks.Repeatedly.Sequenced....
+boxplot(date_order$Peaks.Repeatedly.Sequenced....)
+colnames(date_order)[4:21]
+colnames(date_order)
+
+raw_list = unique(scans$Raw.file[2:length(scans$Raw.file)])
+
+d=data.frame(date=(c("2014-02", '2014-03', "2014-09", "2016-03",'2016-11')), event=c("Dionex",'new QE',"Aeris", "Dual Column and Annual Service",'0'))
+
+
+
+```
+
+Column {.sidebar}
+====================================================
+
+In the panel RAW, current .raw files selected individually or in groups
+
+```{r}
+
+selectInput(inputId = 'file',
+            label = 'Raw file',
+            choices = raw_list,
+            selected = raw_list,
+            multiple = TRUE)
+            
+```
+
+
+The slider allows you to move the start date forwards, in panels, 
+MS and MS/MS,
+Identified,
+Peptides,
+ppm,
+
+```{r}
+
+
+ sliderInput("integer", "Raw file Number", 
+            min=0, max=length(date_order$date_collapse),
+             value=c(500))
+```
+
+
+
+
+RAW {data-icon="fa-list"}
+============================================
+Current raw files are ovelayed upon ideal raw files
+
+
+```{r}
+
+
+scans$Total.ion.current = signif(scans$Total.ion.current,3)
+ sliderInput("y_range", "TIC Range", 
+             min=1e6, max=1.2e10,
+             value=c(0,5e9),
+             dragRange = T,
+             width = 800)
+
+raw_list = unique(scans$Raw.file[2:length(scans$Raw.file)])
+
+#selectInput(inputId = 'RAW',
+#            label = 'RAW file',
+#            choices = raw_list)
+
+ sliderInput("x_range", "Retention Time Range", 
+             min=0, max=max(scans$Retention.time,na.rm=TRUE),
+             value=c(0,max(scans$Retention.time,na.rm= TRUE)),
+             step = 1,
+             dragRange = T,
+             width = 800)
+
+
+fillCol(height = 500,
+renderPlot({
+ggplot(data = ideal_scans, aes(x=Retention.time,y=Total.ion.current,colour=Raw.file)) +
+    geom_line(size = 0.08, alpha = 1) +
+    ylim(input$y_range[1],input$y_range[2]) +
+    xlim(input$x_range[1],input$x_range[2]) +
+    #geom_line(data = scans[scans$Raw.file %in% #raw_list[input$file_range[1]:input$file_range[2]],],
+    geom_line(data = scans[scans$Raw.file %in% input$file,],
+      aes(x=Retention.time,y=Total.ion.current,colour=Raw.file),size = 0.1)
+},height = 500))
+
+
+
+```
+
+MS and MS/MS {data-icon="fa-list"}
+============================================
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### MS
+
+```{r}
+
+fillCol(height = 300,
+renderPlot({
+  #q <- qplot(date_collapse,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
+  ggplot(date_order[c(input$integer:length(date_order$date_collapse)),],
+       aes(date_collapse, MS)) + 
+  geom_boxplot(aes(colour = column_volume)) +
+  theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(x = NULL, y = NULL)
+},height = 300))
+
+```
+
+### MS/MS
+
+```{r}
+
+fillCol(height = 300,
+renderPlot({
+  print(input$integer)
+  #q <- qplot(date_collapse,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
+  ggplot(date_order[c(input$integer:length(date_order$date_collapse)),],
+       aes(date_collapse, MS.MS)) + 
+  geom_boxplot(aes(colour = column_volume)) +
+  theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(x = NULL, y = NULL)
+},height = 300))
+```
+
+
+
+Identified {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### log2(MS/MS / MS)
+
+```{r}
+
+fillCol(height = 300,
+renderPlot({
+  #q <- qplot(date_collapse,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
+  date_order$MS2per = log2(date_order$MS.MS/date_order$MS)
+  ggplot(date_order[c(input$integer:length(date_order$date_collapse)),],
+       aes(date_collapse, MS2per)) + 
+  geom_boxplot(aes(colour = column_volume)) +
+    theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) +
+    scale_y_continuous(limits = c(0,2)) +
+    labs(x = NULL, y = NULL)
+  
+},height = 300))
+
+```
+
+### MS.MS.Identified....
+
+```{r}
+fillCol(height = 300,
+renderPlot({
+  #q <- qplot(date_collapse,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
+  ggplot(date_order[c(input$integer:length(date_order$date_collapse)),],
+       aes(date_collapse, MS.MS.Identified....)) + 
+  geom_boxplot(aes(colour = column_volume)) +
+    theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(x = NULL, y = NULL)
+},height = 300))
+```
+
+
+
+Peptides {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Peptide.Sequences.Identified
+
+```{r}
+
+fillCol(height = 300,
+renderPlot({
+  #q <- qplot(date_collapse,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
+  ggplot(date_order[c(input$integer:length(date_order$date_collapse)),],
+       aes(date_collapse, Peptide.Sequences.Identified)) + 
+  geom_boxplot(aes(colour = column_volume)) +
+    theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(x = NULL, y = NULL)+
+    #xlim(date_collapse[1],date_collapse[100])+
+#xlim(date_order[input$integer,date_collapse],date_order[length(date_order$date_collapse),date_collapse])+
+    geom_vline(data=d, mapping=aes(xintercept=date), color="blue") +
+geom_text(data=d, mapping=aes(x=date, y=0, label=event), size=4, angle=90, vjust=-0.4, hjust=0)
+    
+
+},height = 300))
+
+```
+
+### Peaks.Repeatedly.Sequenced....
+
+```{r}
+fillCol(height = 300,
+renderPlot({
+  #q <- qplot(date_collapse,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
+  ggplot(date_order[c(input$integer:length(date_order$date_collapse)),],
+       aes(date_collapse, Peaks.Repeatedly.Sequenced....)) + 
+  geom_boxplot(aes(colour = column_volume)) +
+    theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(x = NULL, y = NULL)
+},height = 300))
+```
+
+
+ppm {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Av..Absolute.Mass.Deviation..ppm.
+
+```{r}
+
+fillCol(height = 300,
+renderPlot({
+  #q <- qplot(date_collapse,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
+  ggplot(date_order[c(input$integer:length(date_order$date_collapse)),],
+       aes(date_collapse, Av..Absolute.Mass.Deviation..ppm.)) + 
+  geom_boxplot(aes(colour = column_volume)) +
+    theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(x = NULL, y = NULL)
+},height = 300))
+
+```
+
+### Mass.Standard.Deviation..ppm.
+
+```{r}
+fillCol(height = 300,
+renderPlot({
+  #q <- qplot(date_collapse,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
+  ggplot(date_order[c(input$integer:length(date_order$date_collapse)),],
+       aes(date_collapse, Mass.Standard.Deviation..ppm.)) + 
+  geom_boxplot(aes(colour = column_volume)) +
+    theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(x = NULL, y = NULL)
+},height = 300))
+```
+
+
+
+
+
+Other {data-icon="fa-list"}
+============================================
+
+### Select the column to visualise 
+
+
+```{r}
+
+selectInput(inputId = 'data_column',
+            label = 'Choose summary column',
+            choices = colnames(date_order)[4:14])
+
+ sliderInput("range", "Date Range", 
+             min=0, max=length(date_order$date_collapse),
+             value=c(length(date_order$extracted_date)-150,length(date_order$extracted_date)),
+             dragRange = T,
+             width = 800)
+ 
+  # sliderInput("date_range", "Date Range",
+  #             min=as.Date(date_order$extracted_date[0]),
+  #             max=as.Date(date_order$extracted_date[length(date_order$date_collapse)]),
+  #             value = as.Date(date_order$extracted_date[0]),
+  #             timeFormat = '%y-%m-%d',
+  #             timezone = F)
+  # 
+ selected_df <- reactive({
+  subset_df <- date_order[,c(
+                                    which(colnames(date_order) == 'extracted_date'),
+                                    which(colnames(date_order) == input$data_column),
+                                    which(colnames(date_order) == 'column_volume')
+                                    )]
+  colnames(subset_df) <- c('date','property','column_volume')
+  subset_df
+ })
+ 
+
+
+            #selected = 'Peptide.Sequences.Identified')
+
+fillCol(height = 500,
+renderPlot({
+  #q <- qplot(date_collapse,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
+  ggplot(selected_df()[c(input$range[1]:input$range[2]),],
+       aes(date, property)) + 
+  geom_boxplot(aes(colour = column_volume)) +
+    theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(x = NULL, y = NULL)
+
+},height = 500))
+```
+
+
+
+
+
