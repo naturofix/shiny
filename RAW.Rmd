@@ -1,5 +1,5 @@
 ---
-title: "MaxQuant Reference Summary"
+title: "Refernce RAW"
 runtime: shiny
 output: 
   flexdashboard::flex_dashboard:
@@ -15,8 +15,12 @@ library(tidyr)
 library(ggplot2)
 library(leaflet)
 library(DT)
-load('/mnt/BLACKBURNLAB/QC/Reference/summary/msScans.RData')
-dim(scans)
+#library(grid)
+load('/mnt/BLACKBURNLAB/QC/Reference/summary/QC.RData')
+top_scans = read.table(paste(output_folder,'msScans_top.txt',sep='/'),sep ='\t',header = TRUE, stringsAsFactors = TRUE)
+colnames(top_scans)
+dim(top_scans)
+#dim(scans)
 #head(reduced_data)
 #colnames(reduced_data)
 #date_order$Peaks.Repeatedly.Sequenced....
@@ -24,45 +28,103 @@ dim(scans)
 #colnames(date_order)[4:21]
 #colnames(date_order)
 
+top_raw_list = unique(top_scans$Raw.file[2:length(top_scans$Raw.file)])
+top_raw_list[order(top_raw_list)]
+
+raw_list = unique(scans$Raw.file[2:length(scans$Raw.file)])
+
+top_scans$shift_TIC = top_scans$Total.ion.current
+top_scans = transform(top_scans, shift_TIC = c(NA,shift_TIC[-nrow(top_scans)]))
+top_scans$TIC_variance = ((top_scans$Total.ion.current-top_scans$shift_TIC)/top_scans$shift_TIC) * 100
+
+ideal_scans$shift_TIC = ideal_scans$Total.ion.current
+ideal_scans = transform(ideal_scans, shift_TIC = c(NA,shift_TIC[-nrow(ideal_scans)]))
+ideal_scans$TIC_variance = ((ideal_scans$Total.ion.current-ideal_scans$shift_TIC)/ideal_scans$shift_TIC) * 100
+
+
 ```
+
+
+
+Column {.sidebar}
+====================================================
+
+In the panel RAW, current .raw files selected individually or in groups
+
+```{r}
+
+selectInput(inputId = 'file',
+            label = 'Raw file',
+            choices = top_raw_list,
+            selected = raw_list,
+            multiple = TRUE)
+            
+```
+
+
+
+
 
 
 RAW {data-icon="fa-list"}
 ============================================
-test
+Current raw files are ovelayed upon ideal raw files
 
 
 ```{r}
 
 
-scans$Total.ion.current = signif(scans$Total.ion.current,3)
- sliderInput("y_range", "TIC Range", 
+#top_scans$Total.ion.current = signif(top_scans$Total.ion.current,3)
+sliderInput("y_range", "TIC Range", 
              min=1e6, max=1.2e10,
              value=c(0,5e9),
              dragRange = T,
              width = 800)
 
-raw_list = unique(scans$Raw.file[2:length(scans$Raw.file)])
+#raw_list = unique(top_scans$Raw.file[2:length(top_scans$Raw.file)])
 
 #selectInput(inputId = 'RAW',
 #            label = 'RAW file',
 #            choices = raw_list)
 
- sliderInput("file_range", "file Range", 
-             min=0, max=length(raw_list),
-             value=c(0,length(raw_list)),
+ sliderInput("x_range", "Retention Time Range", 
+             min=0, max=max(top_scans$Retention.time,na.rm=TRUE),
+             value=c(0,max(top_scans$Retention.time,na.rm= TRUE)),
+             step = 1,
              dragRange = T,
              width = 800)
 
 
 fillCol(height = 500,
 renderPlot({
-ggplot(scans[scans$Raw.file %in% raw_list[input$file_range[1]:input$file_range[2]],], aes(x=Retention.time,y=Total.ion.current,colour=Raw.file)) +
-  geom_line(size = 0.1) +
-    ylim(input$y_range[1],input$y_range[2])
+ggplot(data = ideal_scans, aes(x=Retention.time,y=Total.ion.current,colour=Raw.file)) +
+    geom_line(size = 0.3, alpha = 1) +
+    ylim(input$y_range[1],input$y_range[2]) +
+    xlim(input$x_range[1],input$x_range[2]) +
+    #geom_line(data = scans[scans$Raw.file %in% #raw_list[input$file_range[1]:input$file_range[2]],],
+    geom_line(data = top_scans[top_scans$Raw.file %in% input$file,],
+      aes(x=Retention.time,y=Total.ion.current,colour=Raw.file),size = 0.1)
 },height = 500))
 
 
 
 ```
 
+
+TIC Variance {data-icon="fa-list"}
+============================================
+Current raw files are ovelayed upon ideal raw files
+
+
+```{r}
+fillCol(height = 1000,
+renderPlot({
+ggplot(data = ideal_scans, aes(x=Retention.time,y=TIC_variance,colour=Raw.file)) +
+    geom_line(size = 0.5, alpha = 1) +
+    ylim(-25,25) +
+    xlim(input$x_range[1],input$x_range[2]) +
+    #geom_line(data = scans[scans$Raw.file %in% #raw_list[input$file_range[1]:input$file_range[2]],],
+    geom_line(data = top_scans[top_scans$Raw.file %in% input$file,],
+      aes(x=Retention.time,y=TIC_variance,colour=Raw.file),size = 0.1)
+},height = 1000))
+```

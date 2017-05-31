@@ -1,0 +1,139 @@
+---
+title: "MaxQuant Reference Summary"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(leaflet)
+library(DT)
+load('/mnt/BLACKBURNLAB/QC/Reference/summary/QC_db.RData')
+#dim(reduced_data)
+#head(reduced_data)
+#colnames(reduced_data)
+#summary$Peaks.Repeatedly.Sequenced....
+boxplot(summary$Peaks_Repeatedly_Sequenced_percentage)
+#colnames(summary)[4:21]
+#colnames(summary)
+
+raw_list = unique(scans$Raw_file[2:length(scans$Raw_file)])
+
+#d=data.frame(date=(c("2014-02", '2014-03', "2014-09", "2016-03",'2016-11','2017-05')), event=c("Dionex",'new QE',"Aeris", "Dual Column and Annual Service",'0','Service and Relocate'))
+
+
+scans$shift_TIC = scans$Total_ion_current
+scans = transform(scans, shift_TIC = c(NA,shift_TIC[-nrow(scans)]))
+scans$TIC_variance = ((scans$Total_ion_current-scans$shift_TIC)/scans$shift_TIC) * 100
+
+#ideal_scans$shift_TIC = ideal_scans$Total_ion_current
+#ideal_scans = transform(ideal_scans, shift_TIC = c(NA,shift_TIC[-nrow(ideal_scans)]))
+#ideal_scans$TIC_variance = #((ideal_scans$Total_ion_current-ideal_scans$shift_TIC)/ideal_scans$shift_TIC) * 100
+
+plot_height_0 = 300
+plot_height_1 = 400
+plot_height_2 = 700
+
+```
+
+
+
+
+DB {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+Current raw files are ovelayed upon ideal raw files
+
+
+```{r}
+
+library("RSQLite")
+
+print('Database created with /mnt/BLACKBURNLAB/scripts/QC/QC_summary_db.py from all the Reference samples run in MaxQuant since 2013')
+
+database_path = '/blackburn3/temp/db/Ref_QC.db'
+con = dbConnect(SQLite(),dbname=database_path)
+#dbDisconnect(con) 
+alltables = dbListTables(con)
+
+print("Database extracted in R workspace using /mnt/BLACKBURNLAB/QC/Reference/summary/temp/Ref_db_plot.R")
+
+print('/mnt/BLACKBURNLAB/QC/Reference/summary/QC_db.RData')
+print("Database tables")
+print(alltables)
+
+#summary = dbGetQuery( con,"select * from summary_RAW WHERE Date != ''" ) # upload the table summary as a data frame
+num_list = colnames(summary)[c(3:13)]
+
+for(col_entry in num_list){
+  summary[,col_entry] = as.numeric(summary[,col_entry])
+}
+
+summary$Date = as.Date(summary$Date, '%Y-%m-%d')
+
+recent_cmd = "recent = summary$Raw_file[as.Date(summary$Date, '%Y-%m-%d') > as.Date('2017-05-15', '%Y-%m-%d') &  as.Date(summary$Date, '%Y-%m-%d') < as.Date('2017-06-01', '%Y-%m-%d')]"
+
+print(recent_cmd)
+eval(parse(text=recent_cmd))
+print(recent)
+
+```
+
+
+Refs {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+Current raw files are ovelayed upon ideal raw files
+
+
+```{r}
+
+ sliderInput("pep_id", "Peptides Identified", 
+             min=0, max=20000,
+             value=c(10000,14000),
+             dragRange = T,
+             width = 1500)
+ 
+selectInput(inputId = 'Gradient',
+             label = 'Gradient',
+             choices = unique(summary$Gradient),
+             selected = '70',
+             multiple = FALSE)
+
+selectInput(inputId = 'Loading',
+             label = 'Loading',
+             choices = unique(summary$Loading),
+             selected = '1000ng',
+             multiple = FALSE)
+
+ 
+best_cmd_r = reactive({
+  best_cmd = paste("best_ids = summary$Raw_file[summary$Peptide_Sequences > ",input$pep_id[1]," & summary$Peptide_Sequences < ",input$pep_id[2]," & summary$Gradient == c('", paste(input$Gradient,collapse="' ,'"), "') & summary$Loading == c('",paste(input$Loading,collapse="' ,'"),"')]",sep='')
+  eval(parse(text=best_cmd))
+})
+
+
+
+#print(best_ids)
+renderText(best_cmd_r())
+# print(refs_list())
+#isolate(best_cmd_r())
+print(best_ids)
+# 
+# updateSelectInput(inputId = 'Refs',
+#               label = 'Refs',
+#               choices = best_cmd_r())
+
+```
+

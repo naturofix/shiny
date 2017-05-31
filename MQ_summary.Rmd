@@ -15,6 +15,7 @@ library(tidyr)
 library(ggplot2)
 library(leaflet)
 library(DT)
+
 load('/mnt/BLACKBURNLAB/QC/Reference/summary/QC.RData')
 #dim(reduced_data)
 #head(reduced_data)
@@ -26,7 +27,16 @@ colnames(date_order)
 
 raw_list = unique(scans$Raw.file[2:length(scans$Raw.file)])
 
-d=data.frame(date=(c("2014-02", '2014-03', "2014-09", "2016-03",'2016-11')), event=c("Dionex",'new QE',"Aeris", "Dual Column and Annual Service",'0'))
+d=data.frame(date=(c("2014-02", '2014-03', "2014-09", "2016-03",'2016-11','2017-05')), event=c("Dionex",'new QE',"Aeris", "Dual Column and Annual Service",'0','Service and Relocate'))
+
+
+scans$shift_TIC = scans$Total.ion.current
+scans = transform(scans, shift_TIC = c(NA,shift_TIC[-nrow(scans)]))
+scans$TIC_variance = ((scans$Total.ion.current-scans$shift_TIC)/scans$shift_TIC) * 100
+
+ideal_scans$shift_TIC = ideal_scans$Total.ion.current
+ideal_scans = transform(ideal_scans, shift_TIC = c(NA,shift_TIC[-nrow(ideal_scans)]))
+ideal_scans$TIC_variance = ((ideal_scans$Total.ion.current-ideal_scans$shift_TIC)/ideal_scans$shift_TIC) * 100
 
 
 
@@ -67,6 +77,9 @@ ppm,
 
 RAW {data-icon="fa-list"}
 ============================================
+Column {data-width=650}
+-----------------------------------------------------------------------
+
 Current raw files are ovelayed upon ideal raw files
 
 
@@ -78,7 +91,7 @@ scans$Total.ion.current = signif(scans$Total.ion.current,3)
              min=1e6, max=1.2e10,
              value=c(0,5e9),
              dragRange = T,
-             width = 800)
+             width = 1500)
 
 raw_list = unique(scans$Raw.file[2:length(scans$Raw.file)])
 
@@ -91,23 +104,41 @@ raw_list = unique(scans$Raw.file[2:length(scans$Raw.file)])
              value=c(0,max(scans$Retention.time,na.rm= TRUE)),
              step = 1,
              dragRange = T,
-             width = 800)
+             width = 1500)
 
 
-fillCol(height = 500,
+fillCol(height = 300,
 renderPlot({
 ggplot(data = ideal_scans, aes(x=Retention.time,y=Total.ion.current,colour=Raw.file)) +
-    geom_line(size = 0.08, alpha = 1) +
+    geom_line(size = 0.75, alpha = 1) +
     ylim(input$y_range[1],input$y_range[2]) +
     xlim(input$x_range[1],input$x_range[2]) +
     #geom_line(data = scans[scans$Raw.file %in% #raw_list[input$file_range[1]:input$file_range[2]],],
     geom_line(data = scans[scans$Raw.file %in% input$file,],
-      aes(x=Retention.time,y=Total.ion.current,colour=Raw.file),size = 0.1)
-},height = 500))
+      aes(x=Retention.time,y=Total.ion.current,colour=Raw.file),size = 0.3)
+},height = 300))
 
 
 
 ```
+
+### TIC Variance
+```{r}
+fillCol(height = 300,
+renderPlot({
+ggplot(data = ideal_scans, aes(x=Retention.time,y=TIC_variance,colour=Raw.file)) +
+    geom_line(size = 1, alpha = 1) +
+    ylim(-20,20) +
+    xlim(input$x_range[1],input$x_range[2]) +
+    #geom_line(data = scans[scans$Raw.file %in% #raw_list[input$file_range[1]:input$file_range[2]],],
+    geom_line(data = scans[scans$Raw.file %in% input$file,],
+      aes(x=Retention.time,y=TIC_variance,colour=Raw.file),size = 0.35)
+},height = 300))
+
+```
+
+
+
 
 MS and MS/MS {data-icon="fa-list"}
 ============================================
