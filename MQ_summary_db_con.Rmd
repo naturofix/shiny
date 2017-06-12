@@ -1,5 +1,5 @@
 ---
-title: "MaxQuant Reference Summary"
+title: "Query QC DB"
 runtime: shiny
 output: 
   flexdashboard::flex_dashboard:
@@ -15,23 +15,44 @@ library(tidyr)
 library(ggplot2)
 library(leaflet)
 library(DT)
-load('/mnt/BLACKBURNLAB/QC/Reference/summary/QC_db.RData')
+library(RSQLite)
+library(reshape)
+
+database_path = '/blackburn3/temp/db/Ref_QC.db'
+con = dbConnect(SQLite(),dbname=database_path)
+
+numeric_columns = function(df,col_num_list){
+  for(col_entry in col_num_list){
+    #print(col_entry)
+    df[,col_entry] = as.numeric(df[,col_entry])
+  }
+  return(df)
+}
+
+
+source("/mnt/BLACKBURNLAB/QC/Reference/summary/QC_db_cmd.R")
+load("/mnt/BLACKBURNLAB/QC/Reference/summary/summary_db.rda")
+load("/mnt/BLACKBURNLAB/QC/Reference/summary/summary_edited_db.rda")
+load("/mnt/BLACKBURNLAB/QC/Reference/summary/scans_db.rda")
+load("/mnt/BLACKBURNLAB/QC/Reference/summary/evidence_db.rda")
+load("/mnt/BLACKBURNLAB/QC/Reference/summary/seq_max_db.rda")
+#load('/mnt/BLACKBURNLAB/QC/Reference/summary/QC_db_sim.RData')
 #dim(reduced_data)
 #head(reduced_data)
 #colnames(reduced_data)
 #summary$Peaks.Repeatedly.Sequenced....
-boxplot(summary$Peaks_Repeatedly_Sequenced_percentage)
+#boxplot(summary$Peaks_Repeatedly_Sequenced_percentage)
 #colnames(summary)[4:21]
 #colnames(summary)
 
-raw_list = unique(scans$Raw_file[2:length(scans$Raw_file)])
+#raw_list = unique(scans$Raw_file[2:length(scans$Raw_file)])
 
 #d=data.frame(date=(c("2014-02", '2014-03', "2014-09", "2016-03",'2016-11','2017-05')), event=c("Dionex",'new QE',"Aeris", "Dual Column and Annual Service",'0','Service and Relocate'))
 
 
-scans$shift_TIC = scans$Total_ion_current
-scans = transform(scans, shift_TIC = c(NA,shift_TIC[-nrow(scans)]))
-scans$TIC_variance = ((scans$Total_ion_current-scans$shift_TIC)/scans$shift_TIC) * 100
+#scans$shift_TIC = scans$Total_ion_current
+#scans = transform(scans, shift_TIC = c(NA,shift_TIC[-nrow(scans)]))
+#scans$TIC_variance = ((scans$Total_ion_current-scans$shift_TIC)/scans$shift_TIC) * 100
 
 #ideal_scans$shift_TIC = ideal_scans$Total_ion_current
 #ideal_scans = transform(ideal_scans, shift_TIC = c(NA,shift_TIC[-nrow(ideal_scans)]))
@@ -56,40 +77,47 @@ Current raw files are ovelayed upon ideal raw files
 
 ```{r}
 
-library("RSQLite")
+#library("RSQLite")
 
 print('Database created with /mnt/BLACKBURNLAB/scripts/QC/QC_summary_db.py from all the Reference samples run in MaxQuant since 2013')
 
-database_path = '/blackburn3/temp/db/Ref_QC.db'
-con = dbConnect(SQLite(),dbname=database_path)
+# database_path = '/blackburn3/temp/db/Ref_QC.db'
+# con = dbConnect(SQLite(),dbname=database_path)
 #dbDisconnect(con) 
-alltables = dbListTables(con)
+# alltables = dbListTables(con)
+print("Database edited  using /mnt/BLACKBURNLAB/QC/Reference/summary/QC_db_meta.R")
 
-print("Database extracted in R workspace using /mnt/BLACKBURNLAB/QC/Reference/summary/temp/Ref_db_plot.R")
+print("Database extracted using /mnt/BLACKBURNLAB/QC/Reference/summary/QC_db_query.R")
 
-print('/mnt/BLACKBURNLAB/QC/Reference/summary/QC_db.RData')
+# print('/mnt/BLACKBURNLAB/QC/Reference/summary/QC_db.RData')
 print("Database tables")
 print(alltables)
-
-#summary = dbGetQuery( con,"select * from summary_RAW WHERE Date != ''" ) # upload the table summary as a data frame
-num_list = colnames(summary)[c(3:13)]
-
-for(col_entry in num_list){
-  summary[,col_entry] = as.numeric(summary[,col_entry])
-}
-
-summary$Date = as.Date(summary$Date, '%Y-%m-%d')
-
-recent_cmd = "recent = summary$Raw_file[as.Date(summary$Date, '%Y-%m-%d') > as.Date('2017-05-15', '%Y-%m-%d') &  as.Date(summary$Date, '%Y-%m-%d') < as.Date('2017-06-01', '%Y-%m-%d')]"
-
-print(recent_cmd)
-eval(parse(text=recent_cmd))
+print(summary_cmd)
+print(summary_edited_cmd)
 print(recent)
+print(ideal_list)
+print(best_ids)
+print(scans_cmd)
+print(evidence_cmd)
+#summary = dbGetQuery( con,"select * from summary_RAW WHERE Date != ''" ) # upload the table summary as a data frame
+# num_list = colnames(summary)[c(3:13)]
+
+# for(col_entry in num_list){
+  # summary[,col_entry] = as.numeric(summary[,col_entry])
+# }
+
+# summary$Date = as.Date(summary$Date, '%Y-%m-%d')
+
+# recent_cmd = "recent = summary$Raw_file[as.Date(summary$Date, '%Y-%m-%d') > as.Date('2017-05-15', '%Y-%m-%d') &  as.Date(summary$Date, '%Y-%m-%d') < as.Date('2017-06-01', '%Y-%m-%d')]"
+
+# print(recent_cmd)
+# eval(parse(text=recent_cmd))
+# print(recent)
 
 ```
 
 
-Refs {data-icon="fa-list"}
+Recent {data-icon="fa-list"}
 ============================================
 Column {data-width=350}
 -----------------------------------------------------------------------
@@ -99,41 +127,577 @@ Current raw files are ovelayed upon ideal raw files
 
 ```{r}
 
- sliderInput("pep_id", "Peptides Identified", 
-             min=0, max=20000,
-             value=c(10000,14000),
-             dragRange = T,
-             width = 1500)
- 
-selectInput(inputId = 'Gradient',
-             label = 'Gradient',
-             choices = unique(summary$Gradient),
-             selected = '70',
-             multiple = FALSE)
+date_list = summary$Date[!is.na(summary$Date)]
+date_list = date_list[date_list < Sys.Date()]
+first_date = min(date_list,na.rm=TRUE)
+last_date = max(date_list,na.rm=TRUE)
 
-selectInput(inputId = 'Loading',
-             label = 'Loading',
-             choices = unique(summary$Loading),
-             selected = '1000ng',
-             multiple = FALSE)
+weeks_2 = last_date-14
+#weeks_2
+dateRangeInput(inputId = 'recent_date', label = 'Date', start = weeks_2, end = last_date, min = first_date,
+  max = last_date, format = "yyyy-mm-dd", startview = "month", weekstart = 0,
+  language = "en", separator = " to ", width = NULL)
+#print(recent)
+recent_query = reactive({
+  selected_dates = summary$Raw_file[summary$Date > input$recent_date[1] & summary$Date <= input$recent_date[2]]
+  selected_dates = selected_dates[!is.na(selected_dates)]
+})
 
- 
-best_cmd_r = reactive({
-  best_cmd = paste("best_ids = summary$Raw_file[summary$Peptide_Sequences > ",input$pep_id[1]," & summary$Peptide_Sequences < ",input$pep_id[2]," & summary$Gradient == c('", paste(input$Gradient,collapse="' ,'"), "') & summary$Loading == c('",paste(input$Loading,collapse="' ,'"),"')]",sep='')
-  eval(parse(text=best_cmd))
+renderText(unique(recent_query()))
+#par(pin=c(12,2))
+hist(date_list,breaks = 'months',main="Dates Refs were run")
+
+```
+
+
+
+<!-- Simply Summary Query {data-icon="fa-list"} -->
+<!-- ============================================ -->
+<!-- Column {data-width=350} -->
+<!-- ----------------------------------------------------------------------- -->
+
+<!-- Current raw files are ovelayed upon ideal raw files -->
+
+
+<!-- ```{r} -->
+<!-- print(paste(colnames(summary),collapse = ', ')) -->
+
+<!--  sliderInput("pep_id", "Peptides Identified",  -->
+<!--              min=min(summary$Peptide_Sequences), max = max(summary$Peptide_Sequences), -->
+<!--              value=c(10000,max = 12000), -->
+<!--              dragRange = T, -->
+<!--              width = 1500) -->
+
+<!-- selectInput(inputId = 'Gradient', -->
+<!--              label = 'Gradient', -->
+<!--              choices = unique(summary$Gradient), -->
+<!--              selected = '70', -->
+<!--              multiple = FALSE) -->
+
+<!-- selectInput(inputId = 'Loading', -->
+<!--              label = 'Loading', -->
+<!--              choices = unique(summary$Loading), -->
+<!--              selected = '600ng', -->
+<!--              multiple = FALSE) -->
+
+<!-- best_cmd = reactive({ -->
+
+<!--   query_list = c(paste("best_ids = summary$Raw_file[summary$Peptide_Sequences > ",input$pep_id[1])," & summary$Peptide_Sequences < ",input$pep_id[2],sep='') -->
+<!--   if(input$Gradient != ''){ -->
+<!--     query_list = c(query_list,paste("& summary$Gradient == c('", paste(input$Gradient,collapse="' ,'"),"')" ,sep='')) -->
+<!--   } -->
+<!-- if(input$Loading != ''){ -->
+<!--     query_list = c(query_list,paste("& summary$Loading == c('", paste(input$Loading,collapse="' ,'"),"')" ,sep='')) -->
+<!-- } -->
+
+<!--   best_cmd = paste(paste(query_list,collapse = ' '),"]") -->
+
+<!--   #dup = unique(best_id[duplicated(best_ids)]) -->
+<!--   #single_ref = best_ids[!best_ids %in% dup] -->
+<!--   #print(single_ref) -->
+<!-- }) -->
+
+<!-- renderText(best_cmd()) -->
+
+<!-- summary_query_ref_list = reactive({ -->
+<!--   eval(parse(text=best_cmd())) -->
+<!-- }) -->
+
+<!-- length_summary_query_ref_list = reactive({ -->
+<!--   length(summary_query_ref_list()) -->
+<!-- }) -->
+
+
+<!-- #print(best_ids) -->
+
+<!-- renderText(length_summary_query_ref_list()) -->
+<!-- renderText(summary_query_ref_list()) -->
+<!-- # print(refs_list()) -->
+<!-- #isolate(best_cmd_r()) -->
+<!-- #print(best_ids) -->
+<!-- #  -->
+<!-- # updateSelectInput(inputId = 'Refs', -->
+<!-- #               label = 'Refs', -->
+<!-- #               choices = best_cmd_r()) -->
+
+<!-- ``` -->
+
+
+
+
+
+
+Recent Table {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+
+
+```{r}
+#print(recent)
+summary_recent = reactive({
+  recent_edited_cmd = paste("select * from summary_edited WHERE Raw_file in ('",paste(recent_query(),collapse = "', '"),"')",sep='')
+  recent_edited = dbGetQuery(con,recent_edited_cmd)
 })
 
 
+#paste(colnames(recent_edited))
+renderDataTable({t(summary_recent())})
+#print(recent_edited)
+```
 
-#print(best_ids)
-renderText(best_cmd_r())
-# print(refs_list())
-#isolate(best_cmd_r())
-print(best_ids)
-# 
-# updateSelectInput(inputId = 'Refs',
-#               label = 'Refs',
-#               choices = best_cmd_r())
+Recent BoxPlots {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+Current raw files are ovelayed upon ideal raw files
+
+```{r}
+renderPlot({
+  ggplot(data = summary_recent(), aes(x=Raw_file,y=Peptide_Sequences,colour=Raw_file)) +
+    geom_boxplot(size = 0.75, alpha = 1) +
+    theme(text = element_text(size=25), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+})
+
+renderPlot({
+  
+  ggplot(data = summary_recent()) +
+    geom_point(aes(x=Raw_file,y=max_TIC,colour=Raw_file)) +
+    geom_point(aes(x=Raw_file,y=mean_TIC,colour=Raw_file)) +
+    geom_point(aes(x=Raw_file,y=min_TIC,colour=Raw_file)) +
+    ylim(1e5,1.5e10) +
+    theme(text = element_text(size=25), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+})
+
+renderPlot({
+  
+  ggplot(data = summary_recent()) +
+    geom_point(aes(x=Raw_file,y=max_RT,colour=Raw_file)) +
+    geom_point(aes(x=Raw_file,y=max_RT_1e8,colour=Raw_file)) +
+    geom_point(aes(x=Raw_file,y=max_RT_1e9,colour=Raw_file)) +
+    theme(text = element_text(size=25), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+})
+
+
+#recent_edited = dbGetQuery( con,recent_cmd) # upload the table summary as
+```
+
+
+
+Plots {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+```{r}
+
+#colnames(summary_edited)
+
+renderPlot(hist(summary_edited$Peptide_Sequences,breaks = 100,main = "Peptide Sequences"))
+renderPlot(barplot(table(summary_edited$Column),main = 'Column'))
+renderPlot(barplot(table(summary_edited$Gradient),main = 'Gradient'))
+renderPlot(barplot(table(summary_edited$Loading),main = 'Loading'))
+renderPlot(barplot(table(summary_edited$Flow_Rate),main = 'Flow Rate'))
+
+renderPlot(hist(summary_edited$max_TIC,breaks = 100,main = 'Max TIC'))
+renderPlot(hist(summary_edited$mean_TIC,breaks = 100,main = 'Min TIC'))
+renderPlot(hist(summary_edited$min_TIC,breaks = 100,main = 'Mean TIC'))
+
+renderPlot(hist(summary_edited$max_RT,breaks = 100,main = 'Max Retention Time'))
+renderPlot(hist(summary_edited$max_RT_1e8,breaks = 100,main = 'Max Retention Time at 1e8'))
+renderPlot(hist(summary_edited$max_RT_1e9,breaks = 100,main = 'Max Retention Time at 1e9'))
 
 ```
+
+Summary Edited Query {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+```{r}
+
+dateRangeInput(inputId = 'query_date', label = 'Date', start = first_date, end = last_date, min = first_date,
+  max = last_date, format = "yyyy-mm-dd", startview = "month", weekstart = 0,
+  language = "en", separator = " to ", width = NULL)
+
+summary_edited = dbGetQuery( con,"select * from summary_edited") # upload the table summary as
+
+
+
+
+
+
+
+
+#summary_edited$max_TIC = as.numeric(summary_edited$max_TIC)
+#summary_edited$max_TIC = summary_edited$TIC[!is.na(summary_edited$max_TIC)]
+
+#a data frame
+# max_TIC, mean_TIC, min_TIC, max_RT"
+
+print(paste(colnames(summary_edited),collapse = ', '))
+print(dim(summary_edited))
+sliderInput("pep_id_ed", "Peptides Identified",
+             min=min(summary_edited$Peptide_Sequences), max = max(summary_edited$Peptide_Sequences),
+             value=c(12000,max = 14000),
+             dragRange = T,
+             width = 500)
+
+max_TIC = as.numeric(summary_edited$max_TIC)
+max_TIC = max_TIC[is.finite(max_TIC)]
+sliderInput("max_TIC_ed", "max TIC",
+             min=min(max_TIC,na.rm=TRUE),
+             max = max(max_TIC,na.rm=TRUE),
+             value=c(1e9,1e10),
+             dragRange = T,
+             width = 500)
+
+min_TIC = as.numeric(summary_edited$min_TIC)
+min_TIC = min_TIC[is.finite(min_TIC)]
+sliderInput("min_TIC_ed", "min TIC",
+             min=min(min_TIC,na.rm=TRUE),
+             max = max(min_TIC,na.rm=TRUE),
+             value=c(min(min_TIC,na.rm=TRUE),max = max(min_TIC,na.rm=TRUE)),
+             dragRange = T,
+             width = 500)
+mean_TIC = as.numeric(summary_edited$mean_TIC)
+mean_TIC = mean_TIC[is.finite(mean_TIC)]
+sliderInput("mean_TIC_ed", "mean TIC",
+             min=signif(min(mean_TIC,na.rm=TRUE),3),
+             max = signif(max(mean_TIC,na.rm=TRUE),3),
+             value=c(min(mean_TIC,na.rm=TRUE),max = max(mean_TIC,na.rm=TRUE)),
+             dragRange = T,
+             width = 500)
+
+max_RT = as.numeric(summary_edited$max_RT)
+max_RT = max_RT[is.finite(max_RT)]
+sliderInput("max_RT_ed", "max RT",
+             min=signif(min(max_RT,na.rm=TRUE),3),
+             max = signif(max(max_RT,na.rm=TRUE),3),
+             value=c(min(max_RT,na.rm=TRUE),max = max(max_RT,na.rm=TRUE)),
+             dragRange = T,
+             width = 500)
+
+selectInput(inputId = 'Gradient_ed',
+             label = 'Gradient',
+             choices = unique(summary_edited$Gradient),
+             selected = '',
+             multiple = FALSE)
+
+selectInput(inputId = 'Loading_ed',
+             label = 'Loading',
+             choices = unique(summary_edited$Loading),
+             selected = '',
+             multiple = FALSE)
+
+selectInput(inputId = 'Column_ed',
+             label = 'Column',
+             choices = unique(summary_edited$Loading),
+             selected = '',
+             multiple = FALSE)
+
+best_cmd_ed = reactive({
+
+  query_list = c(paste("best_ids = summary_edited[summary_edited$Date > input$query_date[1] & summary_edited$Date < input$query_date[2] & summary_edited$Peptide_Sequences > ",input$pep_id_ed[1])," & summary_edited$Peptide_Sequences < ",input$pep_id_ed[2],sep='')
+
+max_line = paste("& summary_edited$max_TIC > ",input$max_TIC_ed[1]," & summary_edited$max_TIC < ",input$max_TIC_ed[2], sep='' )
+
+min_line = paste("& summary_edited$min_TIC > ",input$min_TIC_ed[1]," & summary_edited$min_TIC < ",input$min_TIC_ed[2], sep='' )
+
+mean_line = paste("& summary_edited$mean_TIC > ",input$mean_TIC_ed[1]," & summary_edited$mean_TIC < ",input$mean_TIC_ed[2], sep='' )
+      
+RT_line = paste("& summary_edited$max_RT > ",input$max_RT_ed[1]," & summary_edited$max_RT < ",input$max_RT_ed[2], sep='' )
+
+  query_list=c(query_list,max_line,min_line,mean_line,RT_line)
+
+  if(input$Gradient_ed != ''){
+    query_list = c(query_list,paste("& summary_edited$Gradient == c('", paste(input$Gradient_ed,collapse="' ,'"),"')" ,sep=''))
+  }
+if(input$Loading_ed != ''){
+    query_list = c(query_list,paste("& summary_edited$Loading == c('", paste(input$Loading_ed,collapse="' ,'"),"')" ,sep=''))
+}
+  if(input$Column_ed != ''){
+    query_list = c(query_list,paste("& summary_edited$Column == c('", paste(input$Column_ed,collapse="' ,'"),"')" ,sep=''))
+}
+
+  best_cmd = paste(paste(query_list,collapse = ' '),",]")
+
+})
+
+renderText(best_cmd_ed())
+
+summary_edited_query_table = reactive({
+  eval(parse(text=best_cmd_ed()))
+})
+
+summary_query_ref_list_ed = reactive({
+  ref_list = summary_edited_query_table()$Raw_file
+})
+
+total_ed = reactive({
+  paste('Total number : ',length(summary_query_ref_list_ed()))
+})
+renderText(total_ed())
+
+unique_ed = reactive({
+  paste('Unique: ',length(unique(summary_query_ref_list_ed())))
+})
+renderText(unique_ed())
+
+
+single_ed = reactive({
+  best_ids = summary_query_ref_list_ed()
+  dup = best_ids[duplicated(best_ids)]
+  single_ref = unique(best_ids[!best_ids %in% dup])
+})
+len_single_ed = reactive({
+  paste('Single: ',length(single_ed()))
+})
+renderText(len_single_ed())
+
+
+
+ref_ed = reactive({
+  if(length(unique(summary_query_ref_list_ed())) > 20){
+    unique(summary_query_ref_list_ed())[c(1:20)]
+  }
+  else{
+    unique(summary_query_ref_list_ed())
+  }
+})
+renderText(ref_ed())
+
+
+```
+
+
+
+Query Table {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+```{r}
+
+summary_query = reactive({
+  summary_query = summary_edited[summary$Raw_file %in% ref_ed(),]
+  summary_query
+  #summary_query$query = 'query'
+  #summary_recent()$query = 'recent'
+  #summary_all = rbind(summary_query,summary_recent)
+  #sumary_all
+}) 
+
+renderDataTable(t(summary_query()))
+```
+
+Query Plots {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+```{r}
+
+summary_all = reactive({
+  sq = summary_query()
+  sr = summary_recent()
+  
+  sq$query = 'query'
+  sr$query = 'recent'
+  
+  summary_all = rbind(sq,sr)
+  summary_all
+})
+
+#renderTable(summary_all())
+
+renderPlot({
+  ggplot(data = summary_all(), aes(x=Raw_file,y=Peptide_Sequences,colour=Raw_file,shape=query)) +
+    geom_point(size = 5, alpha = 1) +
+    theme(text = element_text(size=15), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+})
+
+renderPlot({
+  
+  ggplot(data = summary_all()) +
+    geom_point(size = 5, aes(x=Raw_file,y=max_TIC,colour=Raw_file,shape=query)) +
+    geom_point(size = 5, aes(x=Raw_file,y=mean_TIC,colour=Raw_file,shape=query)) +
+    geom_point(size = 5, aes(x=Raw_file,y=min_TIC,colour=Raw_file,shape=query)) +
+    ylim(1e5,1.5e10) +
+    theme(text = element_text(size=15), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+})
+
+renderPlot({
+  
+  ggplot(data = summary_all()) +
+    geom_point(size = 5, aes(x=Raw_file,y=max_RT,colour=Raw_file,shape=query)) +
+    geom_point(size = 5, aes(x=Raw_file,y=max_RT_1e8,colour=Raw_file,shape=query)) +
+    geom_point(size = 5, aes(x=Raw_file,y=max_RT_1e9,colour=Raw_file,shape=query)) +
+    theme(text = element_text(size=15), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+})
+
+
+#recent_edited = dbGetQuery( con,recent_cmd) # upload the table summary as
+```
+
+
+
+Scans {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+```{r}
+
+renderText(unique(summary_query_ref_list_ed()))
+
+    outVar <- reactive({
+      vars <- summary_query_ref_list_ed()
+      vars <- as.list(vars)
+      return(vars)
+    })
+renderText(outVar())
+# selectInput(inputId = 'setA',
+#             label = 'A',
+#             choices = outVar(),
+#             width = 500,
+#             multiple = TRUE)
+
+
+scans_plot = reactive({
+  scans[scans$Raw_file %in% unique(summary_query_ref_list_ed()),]
+})
+
+fillCol(height = 300,
+renderPlot({
+  ggplot(data = scans_plot(), aes(x=Retention_time,y=Total_ion_current,colour=Raw_file)) +
+    geom_line(size = 0.75, alpha = 1) +
+    #ylim(input$y_range[1],input$y_range[2]) +
+    #xlim(input$x_range[1],input$x_range[2]) +
+    theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1))
+
+    #geom_line(data = scans[scans$Raw_file %in% #raw_list[input$file_range[1]:input$file_range[2]],],
+
+},height = 300))
+
+```
+
+
+
+
+RUN {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+
+
+```{r}
+
+renderText(unique(summary_query_ref_list_ed()))
+
+
+
+ actionButton("button", "Run Query")
+
+print('This takes a long time, wait until files to be printed below before exiting')
+#actionButton("button1", "No")
+#done = 'No'
+
+running <- eventReactive(input$button, {
+  'running'
+})
+
+renderText(running())
+
+       scans_query  <- eventReactive(input$button, {
+         full_list = unique(c(recent,unique(summary_query_ref_list_ed())))
+         summary_cmd = paste("select * from summary_RAW WHERE Raw_file in ('",paste(full_list,collapse = "', '"),"')",sep='')
+         summary = dbGetQuery(con,summary_cmd)
+         summary = numeric_columns(summary,c(3:13))
+          summary$Date = as.Date(summary$Date, '%Y-%m-%d')
+
+         summary_edited_cmd = paste("select * from summary_edited WHERE Raw_file in ('",paste(full_list,collapse = "', '"),"')",sep='')
+         summary_edited = dbGetQuery(con,summary_edited_cmd)
+          summary_edited = numeric_columns(summary_edited,c(3:13))
+          summary_edited = numeric_columns(summary_edited,c(19:24))
+          summary_edited$Date = as.Date(summary_edited$Date, '%Y-%m-%d')
+
+          scans_cmd = paste("select * from scans WHERE Raw_file in ('",paste(full_list,collapse = "', '"),"')",sep='')
+          scans = dbGetQuery(con,scans_cmd)
+          scans$Retention_time = as.numeric(scans$Retention_time)
+          scans$Total_ion_current = as.numeric(scans$Total_ion_current)
+          scans$shift_TIC = scans$Total_ion_current
+          scans = transform(scans, shift_TIC = c(NA,shift_TIC[-nrow(scans)]))
+          scans$TIC_variance = ((scans$Total_ion_current-scans$shift_TIC)/scans$shift_TIC) * 100
+
+
+        evidence_cmd = paste("select * from evidence WHERE Raw_file in ('",paste(full_list,collapse = "', '"),"')",sep='')
+        evidence = dbGetQuery(con,evidence_cmd)
+        evidence = numeric_columns(evidence,c(4:7))
+
+        seq_evidence = evidence[,c("Raw_file","Sequence","Intensity")]
+        seq_evidence$Intensity = as.numeric(seq_evidence$Intensity)
+        head(seq_evidence)
+
+        seq_max = cast(seq_evidence,Sequence~Raw_file, function(x) max(x,na.rm=TRUE))
+
+        head(seq_max)
+        evidence[evidence$Sequence =='AAAAAAAAAAAAAAAGAGAGAK',]
+        do.call(data.frame,lapply(seq_max, function(x) replace(x, is.infinite(x),NA)))
+        rownames(seq_max) = seq_max[,1]
+        colnames(seq_max)
+
+        seq_max[,1] = NULL
+        dump(list = c('summary_cmd','summary_edited_cmd','scan_cmd','evidence_cmd'), file = "/mnt/BLACKBURNLAB/QC/Reference/summary/QC_db_cmd.R")
+        save(summary,file = "/mnt/BLACKBURNLAB/QC/Reference/summary/summary_db.rda")
+        save(summary_edited,file = "/mnt/BLACKBURNLAB/QC/Reference/summary/summary_edited_db.rda")
+        save(scans,file = "/mnt/BLACKBURNLAB/QC/Reference/summary/scans_db.rda")
+        save(evidence,file = "/mnt/BLACKBURNLAB/QC/Reference/summary/evidence_db.rda")
+        save(seq_max,file = "/mnt/BLACKBURNLAB/QC/Reference/summary/seq_max_db.rda")
+
+
+
+
+
+         summary$Raw_file
+
+
+       })
+
+       renderText(scans_query())
+      #
+      #
+      #
+      #       query_running_0  <- eventReactive(input$button1, {
+      #   done = 'No'
+      # })
+
+
+# fillCol(height = plot_height_0,
+# renderPlot({
+# ggplot(data = scans(), aes(x=Retention_time,y=Total_ion_current,colour=Raw_file)) +
+#     geom_line(size = 1, alpha = 1) +
+#     theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1))
+# },height = plot_height_0))
+#       renderText(query_running_0())
+#
+
+           #save.image('/mnt/BLACKBURNLAB/QC/Reference/summary/QC_db_SS.RData')
+
+```
+
 

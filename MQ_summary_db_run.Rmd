@@ -1,5 +1,5 @@
 ---
-title: "MaxQuant Reference Summary"
+title: "MQ DB"
 runtime: shiny
 output: 
   flexdashboard::flex_dashboard:
@@ -15,7 +15,13 @@ library(tidyr)
 library(ggplot2)
 library(leaflet)
 library(DT)
-load('/mnt/BLACKBURNLAB/QC/Reference/summary/QC_db.RData')
+library(reshape)
+source("/mnt/BLACKBURNLAB/QC/Reference/summary/QC_db_cmd.R")
+load("/mnt/BLACKBURNLAB/QC/Reference/summary/summary_db.rda")
+load("/mnt/BLACKBURNLAB/QC/Reference/summary/summary_edited_db.rda")
+load("/mnt/BLACKBURNLAB/QC/Reference/summary/scans_db.rda")
+load("/mnt/BLACKBURNLAB/QC/Reference/summary/evidence_db.rda")
+load("/mnt/BLACKBURNLAB/QC/Reference/summary/seq_max_db.rda")
 #dim(reduced_data)
 #head(reduced_data)
 #colnames(reduced_data)
@@ -29,9 +35,6 @@ raw_list = unique(scans$Raw_file[2:length(scans$Raw_file)])
 #d=data.frame(date=(c("2014-02", '2014-03', "2014-09", "2016-03",'2016-11','2017-05')), event=c("Dionex",'new QE',"Aeris", "Dual Column and Annual Service",'0','Service and Relocate'))
 
 
-scans$shift_TIC = scans$Total_ion_current
-scans = transform(scans, shift_TIC = c(NA,shift_TIC[-nrow(scans)]))
-scans$TIC_variance = ((scans$Total_ion_current-scans$shift_TIC)/scans$shift_TIC) * 100
 
 #ideal_scans$shift_TIC = ideal_scans$Total_ion_current
 #ideal_scans = transform(ideal_scans, shift_TIC = c(NA,shift_TIC[-nrow(ideal_scans)]))
@@ -46,20 +49,20 @@ plot_height_2 = 700
 
 
 
-Column {.sidebar}
-====================================================
+<!-- Column {.sidebar} -->
+<!-- ==================================================== -->
 
-In the panel RAW, current .raw files selected individually or in groups
+<!-- In the panel RAW, current .raw files selected individually or in groups -->
 
-```{r}
+<!-- ```{r} -->
 
-selectInput(inputId = 'file',
-            label = 'Raw file',
-            choices = raw_list,
-            selected = raw_list,
-            multiple = TRUE)
-            
-```
+<!-- selectInput(inputId = 'file', -->
+<!--             label = 'Raw file', -->
+<!--             choices = raw_list, -->
+<!--             selected = raw_list, -->
+<!--             multiple = TRUE) -->
+
+<!-- ``` -->
 
 
 
@@ -94,14 +97,14 @@ print(alltables)
 
 #summary$Date = as.Date(summary$Date, '%Y-%m-%d')
 
-print("recent = summary$Raw_file[as.Date(summary$Date, '%Y-%m-%d') > as.Date('2017-05-15', '%Y-%m-%d') &  as.Date(summary$Date, '%Y-%m-%d') < as.Date('2017-06-01', '%Y-%m-%d')]")
-print(recent)
+print(recent_cmd)
+print(unique(recent))
 
 print("best_ids = summary$Raw_file[summary$Peptide_Sequences > 13000 & summary$Peptide_Sequences < 15000 & summary$Gradient == '70' & summary$Loading == '1000ng']")
 print(best_ids)
 
-print(scans_cmd)
-print(evidence_cmd)
+#print(scans_cmd)
+#print(evidence_cmd)
 #print('Most Recent')
 #print(recent)
 #print(summary[,c('Raw_file',"Peptide_Sequences")][summary$Raw_file %in% recent,])
@@ -136,18 +139,158 @@ Column {data-width=350}
 
 Current raw files are ovelayed upon ideal raw files
 
+```{r}
+
+# date_raw = paste(summary$Date[summary$Raw_file %in% raw_list],summary$Raw_file[summary$Raw_file %in% raw_list], sep = ' - ')
+# date_recent = paste(summary$Date[summary$Raw_file %in% recent],summary$Raw_file[summary$Raw_file %in% recent], sep = ' - ')
+
+
+
+selectInput(inputId = 'file',
+            label = 'Raw file',
+            choices = raw_list,
+            selected = recent,
+            multiple = TRUE,
+            width = 1500)
+
+# selectInput(inputId = 'date_file',
+#             label = 'Raw file',
+#             choices = date_raw,
+#             selected = date_recent,
+#             multiple = TRUE,
+#             width = 1500)
+
+# file = reactive({
+#   raw_list = summary$Raw_file[summary$Raw_file %in% recent][match(input$date_file,date_raw)]
+#     raw_list = summary$Raw_file[summary$Raw_file %in% recent][match(recent,date_raw)]
+# 
+#   unique(raw_list)
+# })
+
+# fillCol(height = 600,
+# renderPlot({
+#   ggplot(data = scans[scans$Raw_file %in% file(),], aes(x=Retention_time,y=Total_ion_current,colour=Raw_file)) +
+#     geom_line(size = 0.75, alpha = 1) +
+#     #ylim(input$y_range[1],input$y_range[2]) +
+#     #xlim(input$x_range[1],input$x_range[2]) +
+#     theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1))
+# 
+#     #geom_line(data = scans[scans$Raw_file %in% #raw_list[input$file_range[1]:input$file_range[2]],],
+# 
+# },height = 600))
+
+
+fillCol(height = 600,
+renderPlot({
+  ggplot(data = scans[scans$Raw_file %in% input$file,], aes(x=Retention_time,y=Total_ion_current,colour=Raw_file)) +
+    geom_line(size = 0.75, alpha = 1) +
+    #ylim(input$y_range[1],input$y_range[2]) +
+    #xlim(input$x_range[1],input$x_range[2]) +
+    theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1))
+
+    #geom_line(data = scans[scans$Raw_file %in% #raw_list[input$file_range[1]:input$file_range[2]],],
+
+},height = 600))
+            
+```
+
+Sets {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+```{r}
+
+
+
+selectInput(inputId = 'setA',
+            label = 'A',
+            choices = raw_list,
+            selected = unique(ideal_list),
+            #selected = unique(ideal_list),
+            width = 500,
+            multiple = TRUE)
+
+selectInput(inputId = 'setB',
+            label = 'B',
+            choices = raw_list,
+            selected = head(unique(recent)),
+            #selected = head(unique(recent)),
+            width = 500,
+            multiple = TRUE)
+
+selectInput(inputId = 'setC',
+            label = 'C',
+            choices = raw_list,
+            selected = head(unique(best_ids)),
+            width = 500,
+            multiple = TRUE)
+
+
+summary_sets = reactive({
+  summary_set = summary_edited
+  summary_set$set[summary_set$Raw_file %in% input$setA] = 'setA'
+  summary_set$set[summary_set$Raw_file %in% input$setB] = 'setB'
+  summary_set$set[summary_set$Raw_file %in% input$setC] = 'setC'
+  summary_set = summary_set[summary_set$Raw_file %in% c(input$setA,input$setB,input$setC),]
+  summary_set$MS2per = log2(summary_set$MS_MS/summary_set$MS)
+  summary_set
+})
+
+scans_sets = reactive({
+  scans_set = scans
+  scans_set$set[scans$Raw_file %in% input$setA] = 'setA'
+  scans_set$set[scans$Raw_file %in% input$setB] = 'setB'
+  scans_set$set[scans$Raw_file %in% input$setC] = 'setC'
+  scans_set = scans_set[scans_set$Raw_file %in% c(input$setA,input$setB,input$setC),]
+  scans_set
+})
+
+evidence_sets = reactive({
+  evidence_set = evidence
+  evidence_set$set[evidence$Raw_file %in% input$setA] = 'setA'
+  evidence_set$set[evidence$Raw_file %in% input$setB] = 'setB'
+  evidence_set$set[evidence$Raw_file %in% input$setC] = 'setC'
+  evidence_set = evidence_set[evidence_set$Raw_file %in% c(input$setA,input$setB,input$setC),]
+  evidence_set
+
+})
+
+fillCol(height = 300,
+renderPlot({
+  ggplot(data = scans_sets(), aes(x=Retention_time,y=Total_ion_current,colour=set,fill=Raw_file)) +
+    geom_line(size = 0.75, alpha = 1) +
+    #ylim(input$y_range[1],input$y_range[2]) +
+    #xlim(input$x_range[1],input$x_range[2]) +
+    theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1))
+
+    #geom_line(data = scans[scans$Raw_file %in% #raw_list[input$file_range[1]:input$file_range[2]],],
+
+},height = 300))
+
+renderDataTable(summary_sets())
+``` 
+
+
+
+LC {data-icon="fa-list"}
+============================================
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+Current raw files are ovelayed upon ideal raw files
+
 
 ```{r}
 
 
-scans$Total_ion_current = signif(scans$Total_ion_current,3)
+#scans$Total_ion_current = signif(scans$Total_ion_current,3)
  sliderInput("y_range", "TIC Range", 
              min=1e6, max=1.2e10,
              value=c(0,1e10),
              dragRange = T,
              width = 1500)
 
-raw_list = unique(scans$Raw_file[2:length(scans$Raw_file)])
+#raw_list = unique(scans$Raw_file[2:length(scans$Raw_file)])
 
 #selectInput(inputId = 'RAW',
 #            label = 'RAW file',
@@ -160,11 +303,24 @@ raw_list = unique(scans$Raw_file[2:length(scans$Raw_file)])
              dragRange = T,
              width = 1500)
 
+#  fillCol(height = 300,
+# renderPlot({
+#   ggplot(data = scans_sets(), aes(x=Retention_time,y=Total_ion_current,colour=set,fill=Raw_file)) +
+#     geom_line(size = 0.75, alpha = 1) +
+#     #ylim(input$y_range[1],input$y_range[2]) +
+#     #xlim(input$x_range[1],input$x_range[2]) +
+#     theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1))
+# 
+#     #geom_line(data = scans[scans$Raw_file %in% #raw_list[input$file_range[1]:input$file_range[2]],],
+# 
+# },height = 300))
+ 
+ 
 
 fillCol(height = plot_height_0,
 renderPlot({
-  ggplot(data = scans[scans$Raw_file %in% input$file,], aes(x=Retention_time,y=Total_ion_current,colour=Raw_file)) +
-    geom_line(size = 0.75, alpha = 1) +
+  ggplot(data = scans_sets(), aes(x=Retention_time,y=Total_ion_current,colour=set,fill=Raw_file)) +
+    geom_line(size = 0.75, alpha = 0.5) +
     ylim(input$y_range[1],input$y_range[2]) +
     xlim(input$x_range[1],input$x_range[2]) +
     theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1))
@@ -180,8 +336,8 @@ renderPlot({
 ```{r}
 fillCol(height = plot_height_0,
 renderPlot({
-ggplot(data = scans[scans$Raw_file %in% input$file,], aes(x=Retention_time,y=TIC_variance,colour=Raw_file)) +
-    geom_line(size = 1, alpha = 1) +
+ggplot(data = scans_sets(), aes(x=Retention_time,y=TIC_variance,colour=set)) +
+    geom_line(size = 1, alpha = 0.5) +
     ylim(-20,20) +
     xlim(input$x_range[1],input$x_range[2]) +
     theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1))
@@ -193,7 +349,7 @@ ggplot(data = scans[scans$Raw_file %in% input$file,], aes(x=Retention_time,y=TIC
 
 TIC {data-icon="fa-list"}
 ============================================
-Column {data-width=600}
+Column {data-width=400}
 -----------------------------------------------------------------------
 
 
@@ -206,7 +362,8 @@ Column {data-width=600}
 r_scans = reactive({
   Retention_time_start = input$x_range[1]
   Retention_time_stop = input$x_range[2]
-  reduced_scans = scans[evidence$Retention_time > Retention_time_start & evidence$Retention_time < Retention_time_stop & evidence$Raw_file %in% input$file,]
+  reduced_scans = scans_sets()[scans_sets()$Retention_time > Retention_time_start & scans_sets()$Retention_time < Retention_time_stop,]
+  reduced_scans
 })
 ```
 
@@ -214,14 +371,14 @@ r_scans = reactive({
 
 ```{r}
 
-fillCol(height = plot_height_1,
+fillCol(height = 300,
 renderPlot({
-ggplot(data = r_scans(), aes(x=Raw_file,y=Total_ion_current,colour=Raw_file)) +
+ggplot(data = r_scans(), aes(x=Raw_file,y=Total_ion_current,colour=Raw_file,fill=set)) +
   geom_boxplot(size = 0.75, alpha = 1) +
     ylim(1e8,1e10) +
     theme(text = element_text(size=25),axis.text.x=element_blank(),axis.ticks.x=element_blank())
 
-},height = plot_height_1))
+},height = 300))
 
 
 ```
@@ -230,13 +387,27 @@ ggplot(data = r_scans(), aes(x=Raw_file,y=Total_ion_current,colour=Raw_file)) +
 
 
 ```{r}
-fillCol(height = plot_height_1,
+fillCol(height = 300,
          renderPlot({
-                  ggplot(data = r_scans(), aes(x=Raw_file,y=abs(TIC_variance),colour=Raw_file)) +
+                  ggplot(data = r_scans(), aes(x=Raw_file,y=abs(TIC_variance),colour=Raw_file,fill=set)) +
                     geom_boxplot(size = 0.75, alpha = 1) +
-                    ylim(0,30) +
+                    ylim(0,15) +
              theme(text = element_text(size=25),axis.text.x=element_blank(),axis.ticks.x=element_blank())
-},height = plot_height_1))
+},height = 300))
+```
+
+Column {data-width=200}
+-----------------------------------------------------------------------
+
+
+```{r}
+fillCol(height = 600,
+ renderPlot({
+ggplot(r_scans(), aes(x=abs(TIC_variance))) + 
+     geom_density(aes(group=set,col=set)) +
+  xlim(-0,30) +
+  theme(text = element_text(size=25),axis.text.x=element_blank(),axis.ticks.x=element_blank())
+},height = 600))
 
 
 ```
@@ -250,7 +421,7 @@ fillCol(height = plot_height_1,
 
 
 
-MS and MS/MS {data-icon="fa-list"}
+MS {data-icon="fa-list"}
 ============================================
 Column {data-width=650}
 -----------------------------------------------------------------------
@@ -262,11 +433,13 @@ Column {data-width=650}
 fillCol(height = plot_height_1,
 renderPlot({
   #q <- qplot(Date,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
-  ggplot(summary[summary$Raw_file %in% input$file,],
-       aes(Date, MS)) +
-  geom_point(aes(colour = Raw_file)) +
-  theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(x = NULL, y = NULL)
+  ggplot(data = summary_sets(), aes(x = Raw_file, y = MS, colour = Raw_file,shape=set)) +
+  geom_point(size = 7) +
+  #geom_boxplot(aes(x = set,y = MS))+
+  theme(text = element_text(size=25), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+    labs(x = NULL)
 },height = plot_height_1))
 
 ```
@@ -277,19 +450,19 @@ renderPlot({
 
 fillCol(height = plot_height_1,
 renderPlot({
-  #print(input$integer)
   #q <- qplot(Date,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
-  ggplot(summary[summary$Raw_file %in% input$file,],
-       aes(Date, MS_MS)) +
-  geom_point(aes(colour = Raw_file)) +
-  theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(x = NULL, y = NULL)
+  ggplot(summary_sets()) +
+  geom_point(aes(x = Raw_file, y = MS_MS, colour = Raw_file,shape=set), size = 7) +
+  theme(text = element_text(size=25), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+    labs(x = NULL)
 },height = plot_height_1))
 ```
 
 
 
-Identified {data-icon="fa-list"}
+IDs {data-icon="fa-list"}
 ============================================
 Column {data-width=350}
 -----------------------------------------------------------------------
@@ -301,13 +474,13 @@ Column {data-width=350}
 fillCol(height = plot_height_1,
 renderPlot({
   #q <- qplot(Date,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
-  summary$MS2per = log2(summary$MS_MS/summary$MS)
-  ggplot(summary[summary$Raw_file %in% input$file,],
-       aes(Date, MS2per)) +
-  geom_point(aes(colour = Raw_file)) +
-    theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1)) +
-    scale_y_continuous(limits = c(0,2)) +
-    labs(x = NULL, y = NULL)
+  ggplot(summary_sets(),
+       aes(x = Raw_file, y=MS2per)) +
+  geom_point(aes(colour = Raw_file,shape=set), size = 7) +
+  theme(text = element_text(size=25), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+    labs(x = NULL)
 
 },height = plot_height_1))
 
@@ -319,11 +492,13 @@ renderPlot({
 fillCol(height = plot_height_1,
 renderPlot({
   #q <- qplot(Date,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
-  ggplot(summary[summary$Raw_file %in% input$file,],
-       aes(Date, MS_MS_Identified_percentage)) +
-  geom_point(aes(colour = Raw_file)) +
-    theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(x = NULL, y = NULL)
+  ggplot(summary_sets(),
+       aes(Raw_file, MS_MS_Identified_percentage)) +
+  geom_point(aes(colour = Raw_file,shape=set),size = 7) +
+  theme(text = element_text(size=25), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+    labs(x = NULL)
 },height = plot_height_1))
 ```
 
@@ -341,11 +516,13 @@ Column {data-width=350}
 fillCol(height = plot_height_1,
 renderPlot({
   #q <- qplot(Date,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
-  ggplot(summary[summary$Raw_file %in% input$file,],
-       aes(Date, Peptide_Sequences)) +
-  geom_point(aes(colour = Raw_file)) +
-    theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(x = NULL, y = NULL)
+  ggplot(summary_sets(),
+       aes(Raw_file, Peptide_Sequences)) +
+  geom_point(aes(colour = Raw_file,shape=set),size = 7) +
+  theme(text = element_text(size=25), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+    labs(x = NULL)
 
 
 },height = plot_height_1))
@@ -358,11 +535,13 @@ renderPlot({
 fillCol(height = plot_height_1,
 renderPlot({
   #q <- qplot(Date,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume)
-  ggplot(summary[summary$Raw_file %in% input$file,],
-       aes(Date, Peaks_Repeatedly_Sequenced_percentage)) +
-  geom_point(aes(colour = Raw_file)) +
-    theme(text = element_text(size=25),axis.text.x = element_text(angle = 90, hjust = 1)) +
-    labs(x = NULL, y = NULL)
+  ggplot(summary_sets(),
+       aes(Raw_file, Peaks_Repeatedly_Sequenced_percentage)) +
+  geom_point(aes(colour = Raw_file,shape=set),size = 7) +
+  theme(text = element_text(size=25), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+    labs(x = NULL)
 },height = plot_height_1))
 ```
 
@@ -376,26 +555,6 @@ Column {data-width=600}
 ### Venn
 ```{r}
 library(VennDiagram)
-
- #raw_summary <- reactive({summary[summary$Raw_file %in% input$file,]})
-selectInput(inputId = 'setA',
-            label = 'A',
-            choices = raw_list,
-            selected = raw_list[1],
-            multiple = TRUE)
-
-selectInput(inputId = 'setB',
-            label = 'B',
-            choices = raw_list,
-            selected = raw_list[2],
-            multiple = TRUE)
-
-selectInput(inputId = 'setC',
-            label = 'C',
-            choices = raw_list,
-            selected = raw_list[3],
-            multiple = TRUE)
-
 
 #plot triple Venn
 fillCol(height = 600,
@@ -452,7 +611,8 @@ if(dim(raw_summary)[1] >= 2){
                    rotation.centre = c(0.5, 0.5), #indicates rotation centre
                    ind = TRUE, #binary: first draw diagram, then return gList object?
                    sep.dist = 0.05, #distance between circles if sets mutually exclusive
-                   offset = 0) #offset from centre if inclusive sets
+                   offset = 0,
+                   print.mode = c('raw','percent')) #offset from centre if inclusive sets
 }
 
 
@@ -460,7 +620,215 @@ if(dim(raw_summary)[1] >= 2){
 ```
 
 
-Peptide Comparison {data-icon="fa-list"}
+
+sd {data-icon="fa-list"}
+============================================
+Column {data-width=300}
+-----------------------------------------------------------------------
+
+
+
+```{r}
+
+
+
+ratio_function = function(seq_max,list_1,list_2){
+  seq_names = colnames(seq_max)
+  seq_ratios = seq_max[,0]
+  #seq_ratios
+  #rownames(seq_ratios)
+  #head(seq_ratios)
+  sd_list = c()
+  for(i in list_1){
+    #print(i)
+    for(j in list_2){
+      if(i < j){
+        #print(paste(i,'/',j))
+        ratio_name = paste(seq_names[i],'___',seq_names[j],sep='')
+        #print(ratio_name)
+        ratios = seq_max[i]/seq_max[j]
+        seq_ratios[,ratio_name] = ratios
+        #r = log2(as.numeric(as.matrix(ratios)))
+        #r = r[is.finite(r)]
+        #sd_list[ratio_name] = sd(r)
+      }
+    }
+  }
+  #head(seq_ratios)
+  #d = density(log2(as.matrix(seq_ratios[,1])),na.rm=TRUE)
+  #plot(d)
+  #c2 = seq_ratios
+  #df_sd = as.data.frame(sd_list)
+  return(seq_ratios)
+}
+
+sd_ratio_function = function(ratio_df){
+  sd_list = c()
+  name_list = colnames(ratio_df)
+  for(i in c(1:ncol(ratio_df))){
+    r = log2(as.numeric(as.matrix(ratio_df[,i])))
+    r = r[is.finite(r)]
+    sd_list[name_list[i]] = sd(r)
+  }
+  return(as.data.frame(sd_list))
+}
+
+seq_names = colnames(seq_max)
+
+con_1 = reactive({
+  match(input$setA,seq_names)
+})
+
+
+con_2 = reactive({
+  match(input$setB,seq_names)
+})
+
+c1 = reactive({
+  ratio_function(seq_max,con_1(),con_1())
+})
+
+c1_stack = reactive({
+  c1_stack = stack(log2(c1()))
+  c1_stack$Condition = 'setA'
+  c1_stack$Sequence = rownames(seq_max)
+  c1_stack
+})
+  
+c2 = reactive({
+  ratio_function(seq_max,con_2(),con_2())
+})
+
+c2_stack = reactive({
+  c2_stack = stack(log2(c2()))
+  c2_stack$Condition = 'setB'
+  c2_stack$Sequence = rownames(seq_max)
+  c2_stack
+})
+  
+c3 = reactive({
+  ratio_function(seq_max,con_1(),con_2())
+})
+
+c3_stack =  reactive({
+  c3_stack = stack(log2(c3()))
+  c3_stack$Condition = 'setA_setB'
+  c3_stack$Sequence = rownames(seq_max)
+  c3_stack
+})
+  
+seq_ratios = reactive({
+  c_ratio_stack = rbind(c1_stack(),c2_stack(),c3_stack())
+  colnames(c_ratio_stack) = c('log2_ratio','Raw_file','Condition','Sequence')
+  c_ratio_stack$log2_ratio[!is.finite(c_ratio_stack$log2_ratio)] = NA 
+  #head(c_ratio_stack)
+  c_ratio_stack
+})
+
+
+fillCol(height = 600,
+renderPlot({  
+ggplot(seq_ratios(), aes(x=log2_ratio)) + geom_density(aes(group=Condition,col=Condition))
+  
+},height = 600))
+  
+df_sd_c1 = reactive({
+  df_sd_c1 = sd_ratio_function(c1())
+  df_sd_c1$Condition = 'setA'
+  df_sd_c1
+})
+
+df_sd_c2 = reactive({
+  df_sd_c2 = sd_ratio_function(c2())
+  df_sd_c2$Condition = 'setB'
+  df_sd_c2
+})
+
+df_sd_c3 = reactive({
+  df_sd_c3 = sd_ratio_function(c3())
+  df_sd_c3$Condition = 'setA_setB'
+  df_sd_c3
+})
+
+c_sd = reactive({
+  c_sd = rbind(df_sd_c1(),df_sd_c2(),df_sd_c3())
+  colnames(c_sd) = c('standard_deviation','Condition')
+  c_sd
+})
+
+
+
+```
+
+Column {data-width=300}
+-----------------------------------------------------------------------
+```{r}
+fillCol(height = 600,
+renderPlot({ 
+  ggplot(c_sd(), aes(y=standard_deviation,x=Condition)) + geom_boxplot(aes(group=Condition,col=Condition))
+},height = 600))
+  
+#   
+# })
+
+
+
+
+
+
+
+# 
+# 
+# condition_1 = c(3,4,5)
+# condition_2 = c(8,9,10)
+#
+# c1 = ratio_function(seq_max,condition_1,condition_1)
+# c1_stack = stack(log2(c1))
+# c1_stack$Condition = 'c1'
+# c1_stack$Sequence = rownames(seq_max)
+# #head(c1_stack)
+#
+# c2 = ratio_function(seq_max,condition_2,condition_2)
+# c2_stack = stack(log2(c2))
+# c2_stack$Condition = 'c2'
+# c2_stack$Sequence = rownames(seq_max)
+# #head(c2_stack)
+#
+# c3 = ratio_function(seq_max,condition_1,condition_2)
+# c3_stack = stack(log2(c3))
+# c3_stack$Condition = 'c1_c2'
+# c3_stack$Sequence = rownames(seq_max)
+# #head(c3_stack)
+#
+# c_ratio_stack = rbind(c1_stack,c2_stack,c3_stack)
+# colnames(c_ratio_stack) = c('log2_ratio','Raw_file','Condition','Sequence')
+# c_ratio_stack$log2_ratio[!is.finite(c_ratio_stack$log2_ratio)] = NA
+# #head(c_ratio_stack)
+#
+# ggplot(c_ratio_stack, aes(x=log2_ratio)) + geom_density(aes(group=Condition,col=Condition))
+#
+#
+# df_sd_c1 = sd_ratio_function(c1)
+# df_sd_c1$Condition = 'c1'
+#
+# df_sd_c2 = sd_ratio_function(c2)
+# df_sd_c2$Condition = 'c2'
+#
+# df_sd_c3 = sd_ratio_function(c3)
+# df_sd_c3$Condition = 'c1_c2'
+#
+# c_sd = rbind(df_sd_c1,df_sd_c2,df_sd_c3)
+# colnames(c_sd) = c('standard_deviation','Condition')
+#
+# ggplot(c_sd, aes(y=standard_deviation,x=Condition)) + geom_boxplot(aes(group=Condition,col=Condition))
+#
+#
+#
+
+```
+
+
+Sequences {data-icon="fa-list"}
 ============================================
 Column {data-width=600}
 -----------------------------------------------------------------------
@@ -470,7 +838,7 @@ evidence[Retention_time > Retention_time_start & Retention_time < Retention_time
 
 
 
-sliderInput("seq", "Sequence Range", 
+sliderInput("seq", "Sequence Range",
              min=0, 200,
              value=c(0,5),
              step = 1,
@@ -482,7 +850,7 @@ renderPlot({
 Retention_time_start = input$x_range[1]
 Retention_time_stop = input$x_range[2]
 
-reduced_evidence = evidence[evidence$Retention_time > Retention_time_start & evidence$Retention_time < Retention_time_stop & evidence$Raw_file %in% input$file & evidence$Charge >= 2,]
+reduced_evidence = evidence_sets()[evidence_sets()$Retention_time > Retention_time_start & evidence_sets()$Retention_time < Retention_time_stop,]
 sequences = reduced_evidence$Sequence
 #length(sequences)
 
@@ -498,7 +866,7 @@ head(seq_num)
 a = input$seq[1]
 b = input$seq[2]
 top_seq = reduced_evidence[reduced_evidence$Sequence %in% names(seq_num)[c(a:b)],]
-ggplot(data = top_seq, aes(x=Sequence,y=Intensity,colour=Raw_file, fill = Charge)) +
+ggplot(data = top_seq, aes(x=Sequence,y=Intensity,colour=Raw_file, fill = set)) +
   geom_boxplot(size = 0.75, alpha = 1)+ geom_point() +
   theme(text = element_text(size=25))
 },height = plot_height_2))
@@ -507,7 +875,92 @@ ggplot(data = top_seq, aes(x=Sequence,y=Intensity,colour=Raw_file, fill = Charge
 ```
 
 
-Charge Comparison {data-icon="fa-list"}
+RL {data-icon="fa-list"}
+============================================
+Column {data-width=600}
+-----------------------------------------------------------------------
+
+evidence[Retention_time > Retention_time_start & Retention_time < Retention_time_stop & Raw_file in file & Charge >= 2,]
+```{r}
+
+
+fillCol(height = plot_height_2,
+renderPlot({
+Retention_time_start = input$x_range[1]
+Retention_time_stop = input$x_range[2]
+reduced_evidence = evidence_sets()[evidence_sets()$Retention_time > Retention_time_start & evidence_sets()$Retention_time < Retention_time_stop,]
+
+#evidence$Retention_Length = as.numeric(evidence$Retention_Length)
+#reduced_evidence = evidence[evidence$Retention_time > Retention_time_start & evidence$Retention_time < Retention_time_stop & evidence$Raw_file %in% input$file & evidence$Charge >= 2,]
+sequences = reduced_evidence$Sequence
+#length(sequences)
+
+# arrange sequences with those found most often at the top
+# sequences seem to be present multiple times per sample : need to work out why
+seq_num = table(sequences)
+head(seq_num)
+seq_num = seq_num[rev(order(seq_num))]
+head(seq_num)
+#plot(seq_num)
+
+
+a = input$seq[1]
+b = input$seq[2]
+top_seq = reduced_evidence[reduced_evidence$Sequence %in% names(seq_num)[c(a:b)],]
+ggplot(data = top_seq, aes(x=Sequence,y=Retention_Length,colour=Raw_file,fill=set)) +
+  geom_boxplot(size = 0.75, alpha = 1)+ geom_point() +
+  theme(text = element_text(size=25))
+},height = plot_height_2))
+
+
+```
+
+
+
+RT {data-icon="fa-list"}
+============================================
+Column {data-width=600}
+-----------------------------------------------------------------------
+
+evidence[Retention_time > Retention_time_start & Retention_time < Retention_time_stop & Raw_file in file & Charge >= 2,]
+```{r}
+
+
+fillCol(height = plot_height_2,
+renderPlot({
+Retention_time_start = input$x_range[1]
+Retention_time_stop = input$x_range[2]
+
+#evidence$Retention_time = as.numeric(evidence$Retention_time)
+#reduced_evidence = evidence[evidence$Retention_time > Retention_time_start & evidence$Retention_time < Retention_time_stop & evidence$Raw_file %in% input$file & evidence$Charge >= 2,]
+reduced_evidence = evidence_sets()[evidence_sets()$Retention_time > Retention_time_start & evidence_sets()$Retention_time < Retention_time_stop,]
+
+sequences = reduced_evidence$Sequence
+#length(sequences)
+
+# arrange sequences with those found most often at the top
+# sequences seem to be present multiple times per sample : need to work out why
+seq_num = table(sequences)
+head(seq_num)
+seq_num = seq_num[rev(order(seq_num))]
+head(seq_num)
+#plot(seq_num)
+
+
+a = input$seq[1]
+b = input$seq[2]
+top_seq = reduced_evidence[reduced_evidence$Sequence %in% names(seq_num)[c(a:b)],]
+ggplot(data = top_seq, aes(x=Sequence,y=Retention_time,colour=Raw_file,fill=set)) +
+  geom_boxplot(size = 0.75, alpha = 1)+ geom_point() +
+  theme(text = element_text(size=25))
+},height = plot_height_2))
+
+
+```
+
+
+
+Charge {data-icon="fa-list"}
 ============================================
 Column {data-width=600}
 -----------------------------------------------------------------------
@@ -523,7 +976,9 @@ renderPlot({
 Retention_time_start = input$x_range[1]
 Retention_time_stop = input$x_range[2]
 
-reduced_evidence = evidence[evidence$Retention_time > Retention_time_start & evidence$Retention_time < Retention_time_stop & evidence$Raw_file %in% input$file,]
+reduced_evidence = evidence_sets()[evidence_sets()$Retention_time > Retention_time_start & evidence_sets()$Retention_time < Retention_time_stop,]
+
+#reduced_evidence = evidence[evidence$Retention_time > Retention_time_start & evidence$Retention_time < Retention_time_stop & evidence$Raw_file %in% input$file,]
 #sequences = reduced_evidence$Sequence
 #length(sequences)
 
@@ -548,100 +1003,5 @@ ggplot(data = ch_t, aes(x=Raw_file,y=Freq,col=Raw_file,shape=Charge)) +
 
 
 ```
-
-
-
-<!-- ppm {data-icon="fa-list"} -->
-<!-- ============================================ -->
-<!-- Column {data-width=350} -->
-<!-- ----------------------------------------------------------------------- -->
-
-<!-- ### Av..Absolute.Mass.Deviation..ppm. -->
-
-<!-- ```{r} -->
-
-<!-- fillCol(height = 300, -->
-<!-- renderPlot({ -->
-<!--   #q <- qplot(Date,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume) -->
-<!--   ggplot(summary[c(input$integer:length(summary$Date)),], -->
-<!--        aes(Date, Av..Absolute.Mass.Deviation..ppm.)) +  -->
-<!--   geom_boxplot(aes(colour = column_volume)) + -->
-<!--     theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) + -->
-<!--     labs(x = NULL, y = NULL) -->
-<!-- },height = 300)) -->
-
-<!-- ``` -->
-
-<!-- ### Mass.Standard.Deviation..ppm. -->
-
-<!-- ```{r} -->
-<!-- fillCol(height = 300, -->
-<!-- renderPlot({ -->
-<!--   #q <- qplot(Date,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume) -->
-<!--   ggplot(summary[c(input$integer:length(summary$Date)),], -->
-<!--        aes(Date, Mass.Standard.Deviation..ppm.)) +  -->
-<!--   geom_boxplot(aes(colour = column_volume)) + -->
-<!--     theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) + -->
-<!--     labs(x = NULL, y = NULL) -->
-<!-- },height = 300)) -->
-<!-- ``` -->
-
-
-
-
-
-<!-- Other {data-icon="fa-list"} -->
-<!-- ============================================ -->
-
-<!-- ### Select the column to visualise  -->
-
-
-<!-- ```{r} -->
-
-<!-- selectInput(inputId = 'data_column', -->
-<!--             label = 'Choose summary column', -->
-<!--             choices = colnames(summary)[4:14]) -->
-
-<!--  sliderInput("range", "Date Range",  -->
-<!--              min=0, max=length(summary$Date), -->
-<!--              value=c(length(summary$extracted_date)-150,length(summary$extracted_date)), -->
-<!--              dragRange = T, -->
-<!--              width = 800) -->
-
-<!--   # sliderInput("date_range", "Date Range", -->
-<!--   #             min=as.Date(summary$extracted_date[0]), -->
-<!--   #             max=as.Date(summary$extracted_date[length(summary$Date)]), -->
-<!--   #             value = as.Date(summary$extracted_date[0]), -->
-<!--   #             timeFormat = '%y-%m-%d', -->
-<!--   #             timezone = F) -->
-<!--   #  -->
-<!--  selected_df <- reactive({ -->
-<!--   subset_df <- summary[,c( -->
-<!--                                     which(colnames(summary) == 'extracted_date'), -->
-<!--                                     which(colnames(summary) == input$data_column), -->
-<!--                                     which(colnames(summary) == 'column_volume') -->
-<!--                                     )] -->
-<!--   colnames(subset_df) <- c('date','property','column_volume') -->
-<!--   subset_df -->
-<!--  }) -->
-
-
-
-<!--             #selected = 'Peptide_Sequences_Identified') -->
-
-<!-- fillCol(height = 500, -->
-<!-- renderPlot({ -->
-<!--   #q <- qplot(Date,',column_name,',data=reduced_data,geom=c("boxplot","point"),colour = column_volume) -->
-<!--   ggplot(selected_df()[c(input$range[1]:input$range[2]),], -->
-<!--        aes(date, property)) +  -->
-<!--   geom_boxplot(aes(colour = column_volume)) + -->
-<!--     theme(text = element_text(size=15),axis.text.x = element_text(angle = 90, hjust = 1)) + -->
-<!--     labs(x = NULL, y = NULL) -->
-
-<!-- },height = 500)) -->
-<!-- ``` -->
-
-
-
 
 
